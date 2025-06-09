@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>チャット</title>
+</head>
+<body>
+
+<!--/ コンテンツ表示画面 -->
+
+<div>
+    <div>ニックネーム：<br>
+        <input type="text" id="uname"></div>
+    <div>メッセージ：<br>
+        <textarea id="text" cols="30" rows="10"></textarea>
+        <button id="send">送信</button>
+    </div>
+    <div>
+    <h3>スタンプ機能は近日公開予定です:</h3>
+    <ul id="stamp-selection">
+        <li class="stamp" data-img="imgs/buke.png"><img src="imgs/buke.png" width="50"></li>
+        <li class="stamp" data-img="imgs/tuku.jpg"><img src="imgs/tuku.jpg" width="50"></li>
+        <li class="stamp" data-img="imgs/caram.png"><img src="imgs/caram.png" width="50"></li>
+    </ul>
+    </div>
+    <h1></h1>
+    <div>書き込み履歴：<br>
+    <div id="output" style="overflow: auto; height: 300px;"></div>
+</div>
+
+
+<!-- cssの追加 -->
+<style>
+    input {
+        background-color: lightgoldenrodyellow; /* 薄ピンク */
+        overflow-y: auto; /* 縦スクロールを明示 */
+        border: 2px solid #ffb6c1; /* 境界線をピンクで強調 */
+        width: 10%;
+    }
+    textarea {
+        margin-right: 20px;
+        background-color: #ffe6e6; /* 薄ピンク */
+        overflow-y: auto; /* 縦スクロールを明示 */
+        border: 2px solid #ffb6c1; /* 境界線をピンクで強調 */
+        width: 50%;
+        height: 150px;
+    }
+
+    #output {
+    background-color: #e0f7ff; /* 薄青色 */
+    overflow: auto;
+    height: 300px;
+    padding: 10px; /* 余白を追加 */
+    border-radius: 5px; /* 角を少し丸める */
+    border: 2px solid #87CEFA; /* 境界線をライトブルーで強調 */
+    }
+</style>
+
+
+<!-- JQuery -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<!-- JQuery -->
+
+
+<!--** 以下Firebase **-->
+<script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import { getDatabase, ref, push, set, remove, onChildAdded, onChildRemoved } 
+    from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+    // TODO: Add SDKs for Firebase products that you want to use
+    // https://firebase.google.com/docs/web/setup#available-libraries
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+    apiKey: "------------------------------------------",
+    authDomain: "--------------------------------------",
+    projectId: "---------------------------------------",
+    storageBucket: "-----------------------------------",
+    messagingSenderId: "-------------------------------",
+    appId: "--------------------------------------------"
+    };
+
+    // リアルタイムデータベースを使うために必要な行
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db,"chat");       //データを入れる場所を指定、今回は「chat」アプリを作ったので「chat」と入力
+
+
+    // 送信イベント
+$("#send").on("click", () => {
+    const uname = $("#uname").val().trim();
+    const text = $("#text").val().trim();
+
+    // どちらかが空の場合はアラートを表示
+    if (uname === "" || text === "") {
+        alert("ニックネームまたはメッセージが空白です、何か書いてください");
+        return;
+    }
+
+    const msg = {
+        date: new Date().toLocaleString(),
+        uname: uname,
+        text: text
+    };
+
+    const newPostRef = push(dbRef);
+    set(newPostRef, msg);
+    $("#text").val("");  // 送信後に textarea をクリア
+});
+
+
+    // 受信イベント
+    onChildAdded(dbRef, data => {
+    const msg = data.val();
+    const key = data.key;
+    // メッセージごとに <div> でラップし、ID に key を付与
+    const html = `
+    <div id="${key}" style="border-bottom:1px solid #ccc; margin:8px 0; padding:4px;">
+        <small>${msg.date}／<strong>${msg.uname}</strong></small><br>
+        <span>${msg.text}</span>
+        <button class="delete-btn" data-key="${key}"
+                style="float:right; color:#f44; background:none; border:none; cursor:pointer;">
+        削除
+        </button>
+    </div>`;
+    $("#output").append(html);
+    });
+
+// 削除ボタンのクリックイベント
+$("#output").on("click", ".delete-btn", function() {
+const key = $(this).data("key");
+
+// 削除の最終確認
+if (!confirm("本当に削除してよろしいか")) {
+    return; // キャンセルされたら以降スキップ
+    }
+
+// Firebaseから削除のリクエスト
+const itemRef = ref(db, `chat/${key}`);
+remove(itemRef)
+    .catch(err => console.error("削除に失敗しました:", err));
+});
+
+// 削除時にフェードアウトでふわっと消す
+onChildRemoved(dbRef, data => {
+const key = data.key;
+$(`#${key}`).fadeOut(300, function() {
+    $(this).remove();
+    });
+});
+
+</script>
+
+
+</body>
+</html>
+
